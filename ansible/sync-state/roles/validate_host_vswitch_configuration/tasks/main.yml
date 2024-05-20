@@ -1,0 +1,16 @@
+---
+# tasks file for roles/validate_host_vswitch_configuration
+- name: Add a VMware vSwitch for Host {{ esxi_host }}
+  community.vmware.vmware_vswitch:
+    esxi_hostname: '{{ esxi_host }}'
+    hostname: '{{ vsphere.server }}'
+    username: '{{ vsphere.user }}'
+    password: '{{ vsphere.password }}'
+    validate_certs: false
+    switch: "{{ vswitch.key }}"
+    nics: "{{ vswitch.value.pnics }}"
+    mtu: "{{ vswitch.value.mtu }}"
+    number_of_ports: "{{ vswitch.value.num_ports }}"
+  loop: "{{ reference | dict2items }}"
+  loop_control:
+    loop_var: vswitch

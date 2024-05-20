@@ -1,0 +1,38 @@
+---
+# tasks file for roles/validate_host_vswitch_configuration
+- name: Add Portgroups for {{ esxi_host }}
+  community.vmware.vmware_portgroup:
+    esxi_hostname: '{{ esxi_host }}'
+    hostname: '{{ vsphere.server }}'
+    username: '{{ vsphere.user }}'
+    password: '{{ vsphere.password }}'
+    validate_certs: false
+    portgroup: "{{ portgroup.portgroup }}"
+    vlan_id: "{{ portgroup.vlan_id }}"
+    switch: "{{ portgroup.vswitch }}"
+  loop: "{{ reference  }}"
+  loop_control:
+    loop_var: portgroup
+- name: get Portgroups for {{ esxi_host }}
+  community.vmware.vmware_portgroup_info:
+    esxi_hostname: '{{ esxi_host }}'
+    hostname: '{{ vsphere.server }}'
+    username: '{{ vsphere.user }}'
+    password: '{{ vsphere.password }}'
+    validate_certs: false
+  register: portgroups
+- set_fact:
+    conditioned_portgroups: "{{ portgroups['hosts_portgroup_info'] | dict2items | json_query('[0].value')  }}"
+- name: Remove stray Portgroups for {{ esxi_host }}
+  community.vmware.vmware_portgroup:
+    esxi_hostname: '{{ esxi_host }}'
+    hostname: '{{ vsphere.server }}'
+    username: '{{ vsphere.user }}'
+    password: '{{ vsphere.password }}'
+    validate_certs: false
+    portgroup: "{{ portgroup.portgroup }}"
+    switch: "{{ portgroup.vswitch }}"
+    state: "absent"
+  loop: "{{ conditioned_portgroups | difference(reference)  }}"
+  loop_control:
+    loop_var: portgroup

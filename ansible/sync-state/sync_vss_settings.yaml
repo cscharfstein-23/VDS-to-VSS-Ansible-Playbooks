@@ -1,0 +1,50 @@
+---
+- vars_files: 
+    - vars
+  hosts: localhost
+  tasks:
+    - name: Gather vswitch info about reference ESXi Host
+      community.vmware.vmware_vswitch_info:
+        hostname: '{{ vsphere.server }}'
+        username: '{{ vsphere.user }}'
+        password: '{{ vsphere.password }}'
+        esxi_hostname: '10.188.161.71'
+        validate_certs: false
+      delegate_to: localhost
+      register: reference_host_vswitch_info
+    - set_fact:
+        vswitch_reference: "{{ reference_host_vswitch_info['hosts_vswitch_info'] | dict2items | json_query('[0].value')  }}"
+    - name: Gather portgroup info about reference ESXi Host
+      community.vmware.vmware_portgroup_info:
+        hostname: '{{ vsphere.server }}'
+        username: '{{ vsphere.user }}'
+        password: '{{ vsphere.password }}'
+        esxi_hostname: '10.188.161.71'
+        validate_certs: false
+      delegate_to: localhost
+      register: reference_host_portgroup_info
+    - set_fact:
+        portgroup_reference: "{{ reference_host_portgroup_info['hosts_portgroup_info'] | dict2items | json_query('[0].value')  }}"
+    - debug:
+        var: reference_host_portgroup_info
+    - name: Get a list of the hosts
+      vmware.vmware_rest.vcenter_host_info:
+        vcenter_hostname: '{{ vsphere.server }}'
+        vcenter_username: '{{ vsphere.user }}'
+        vcenter_password: '{{ vsphere.password }}'
+        vcenter_validate_certs: false
+      register: my_hosts
+    - name: Sync vSwitch Properties
+      include_role: 
+        name: validate_host_vswitch_configuration
+      vars:
+        reference: "{{ vswitch_reference }}"
+        esxi_host: "{{ item }}"
+      loop:  "{{ my_hosts | json_query('value[*].name') }}"
+    - name: Sync port_group Properties
+      include_role:
+        name: validate_host_portgroup_configuration
+      vars:
+        reference: "{{ portgroup_reference }}"
+        esxi_host: "{{ item }}"
+      loop:  "{{ my_hosts | json_query('value[*].name') }}"
